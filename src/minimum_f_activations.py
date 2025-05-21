@@ -1,6 +1,8 @@
 from lllwbc_diff import LLLWBCDiff
 from utils import Utils as U
 
+from time import time
+
 from z3 import *
 
 
@@ -237,7 +239,11 @@ class MinimumFActivation(LLLWBCDiff):
 
 def main():
     s = MinimumFActivation(rounds=5)
+    start = time()
     s.find_restricted_round_function_count(6)
+    duration = time() - start
+    print(f'\nTotal execution time was {round(duration, 3)} seconds.')
+
 
 if __name__ == '__main__':
     main()
