@@ -1,0 +1,3 @@
+[submodule "Z3/z3"]
+	path = Z3/z3
+	url = https://github.com/Z3Prover/z3
