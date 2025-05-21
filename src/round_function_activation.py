@@ -1,6 +1,5 @@
 from lllwbc_diff import LLLWBCDiff
 from utils import Utils as U
-from random import randint
 
 from z3 import *
 
