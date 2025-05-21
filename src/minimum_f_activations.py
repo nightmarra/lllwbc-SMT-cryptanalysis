@@ -129,6 +129,11 @@ class MinimumFActivation(LLLWBCDiff):
 
     # finds the number of mininum active round functions
     def find_minimum_active_fs(self):
+        while True:
+            try:
+                self.solver.pop()
+            except Z3Exception:
+                break
         self.solver.push()
         for i in range(128):
             self.solver.add(Not(self.key_vars[i]))
@@ -180,6 +185,12 @@ class MinimumFActivation(LLLWBCDiff):
     # # finds whether, for a given number of rounds, an input diff is possible...
     # # ...such that the number of active F's is less than or equal to restriction
     def find_restricted_round_function_count(self, restriction: int):
+        while True:
+            try:
+                self.solver.pop()
+            except Z3Exception:
+                break
+
         self.solver.push()
         for i in range(128):
             self.solver.add(Not(self.key_vars[i]))
@@ -225,8 +236,8 @@ class MinimumFActivation(LLLWBCDiff):
         
 
 def main():
-    s = MinimumFActivation(rounds=4)
-    s.find_restricted_round_function_count(4)
+    s = MinimumFActivation(rounds=5)
+    s.find_restricted_round_function_count(6)
 
 if __name__ == '__main__':
     main()

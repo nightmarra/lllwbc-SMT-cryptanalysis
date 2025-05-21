@@ -1,5 +1,6 @@
 from lllwbc_diff import LLLWBCDiff
 from utils import Utils as U
+from random import randint
 
 from z3 import *
 
@@ -9,13 +10,26 @@ class RFActivation(LLLWBCDiff):
     def __init__(self, rounds):
         super().__init__(rounds)
         self.rounds = rounds
+        self.key_vars = [Bool(f'key_{i}') for i in range(128)]
         
     
     # counts how many F's are active during each round
     def count_active_round_functions(self, input_diff):
+        while True:
+            try:
+                self.solver.pop()
+            except Z3Exception:
+                break
+
         self.solver.push()
+        # self.key_vars = [Bool(f'key_{i}') for i in range(128)]
+        # self.sbox_fun = Function('sbox', BitVecSort(4), BitVecSort(4))
+        # for i, val in enumerate(self.sbox):
+        #     self.solver.add(self.sbox_fun(i) == val)
         for i in range(128):
             self.solver.add(Not(self.key_vars[i]))  # force the key to be zeros
+        
+        
 
         input_bits = U.seq_to_bit([(input_diff >> (56 - 8*i)) & 0xff for i in range(8)])
         p1 = [Bool(f'p1_{i}') for i in range(64)]
@@ -124,8 +138,11 @@ class RFActivation(LLLWBCDiff):
     
 def test():
     s = RFActivation(rounds=21)
-    print(s.count_active_round_functions(0x0000000000000001))
-   
+    res = s.count_active_round_functions(0x0000000000000001)
+    count = sum(val for _, val in res)
+    print(res)
+    print(count)
+
 
 def main():
     test()

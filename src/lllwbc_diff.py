@@ -1,7 +1,11 @@
 from lllwbc import LLLWBC
 from utils import Utils as U
+from time import time
+from random import randint
 
 from z3 import *
+# z3.set_param('parallel.enable', True)
+
 
 
 class LLLWBCDiff(LLLWBC):
@@ -176,29 +180,28 @@ class LLLWBCDiff(LLLWBC):
 
 
 
-def test():
-    ROUND_COUNT = 2
+def test_random():
+    ROUND_COUNT = 5
     lllwbc_diff = LLLWBCDiff(ROUND_COUNT)
 
-    # a list of tuples (input_diff, output_diff) for testing
-    differentials = [
-            (0x0000000000000001, 0x0000000001000000),
-            (0x0000000000000001, 0x0000000000100000),
-            (0x0000000100000000, 0x0000010000000000),
-            (0x0000001100000000, 0x1000010000000000),
-            (0x0000001100000000, 0x40100d009000b010),
-            (0x0000001000000000, 0x001000009000b000),
-            (0x0000001100000000, 0xb9f81322c4b25947)
-        ]
+    times = []
+    differentials = [(randint(1152921504606846976, 18446744073709551615),
+                      randint(1152921504606846976, 18446744073709551615)) 
+                      for _ in range(20)]
 
     for i, (in_diff, out_diff) in enumerate(differentials):
         print(f"\nTesting differential #{i + 1}: "
               f"0x{in_diff:016x} → 0x{out_diff:016x}")
 
         # check if a differential trail exists
+        start = time()
         model, p1, p2, c1, c2 = lllwbc_diff.symbolic_verify_path(in_diff, out_diff)
+        duration = time() - start
+        times.append(duration)
+
         if model is None:
             print("✗ Impossible - No key exists that satisfies this differential\n")
+            print(f'\nTotal execution time was {round(duration, 3)} seconds.')
             continue
         print("✓ Differential is possible!")
 
@@ -239,9 +242,139 @@ def test():
         c2_hex = ''.join(f'{b:02x}' for b in c2_bytes)
         print(f"Ciphertext 2: {c2_hex}")
 
+        print(f'\nTotal execution time was {round(duration, 3)} seconds.')
+
+    print(f'\nAverage time: {sum(times)/20}')
+    print(f'\nMin time: {min(times)}')
+    print(f'\nMax time: {max(times)}')
+
+
+def test_multiple():
+    ROUND_COUNT = 2
+    lllwbc_diff = LLLWBCDiff(ROUND_COUNT)
+
+    differentials = [
+            (0x0000000000000001, 0x0000000001000000),
+            (0x0000000000000001, 0x0000000000100000),
+            (0x0000000100000000, 0x0000010000000000),
+            (0x0000001100000000, 0x1000010000000000),
+            (0x0000001100000000, 0x40100d009000b010),
+            (0x0000001000000000, 0x001000009000b000),
+            (0x0000001100000000, 0xb9f81322c4b25947)
+    ]
+
+    for i, (in_diff, out_diff) in enumerate(differentials):
+        print(f"\nTesting differential #{i + 1}: "
+              f"0x{in_diff:016x} → 0x{out_diff:016x}")
+
+        # check if a differential trail exists
+        start = time()
+        model, p1, p2, c1, c2 = lllwbc_diff.symbolic_verify_path(in_diff, out_diff)
+        duration = time() - start
+
+        if model is None:
+            print("✗ Impossible - No key exists that satisfies this differential\n")
+            print(f'\nTotal execution time was {round(duration, 3)} seconds.')
+            continue
+        print("✓ Differential is possible!")
+
+        # extract the key from the model
+        key_bits = []
+        for i in range(128):
+            key_var = lllwbc_diff.key_vars[i]
+            key_bits.append(is_true(model.eval(key_var)))
+
+        p1_bits = []
+        p2_bits = []
+        c1_bits = []
+        c2_bits = []
+        for i in range(64):
+            p1_bits.append(is_true(model.eval(p1[i])))
+            p2_bits.append(is_true(model.eval(p2[i])))
+            c1_bits.append(is_true(model.eval(c1[i])))
+            c2_bits.append(is_true(model.eval(c2[i])))
+
+        # convert to byte sequence and display the key in hex
+        key_bytes = U.bit_to_seq(key_bits)
+        key_hex = ''.join(f'{b:02x}' for b in key_bytes)
+        print(f"Key: {key_hex}")
+
+        p1_bytes = U.bit_to_seq(p1_bits)
+        p1_hex = ''.join(f'{b:02x}' for b in p1_bytes)
+        print(f"Plaintext 1: {p1_hex}")
+
+        p2_bytes = U.bit_to_seq(p2_bits)
+        p2_hex = ''.join(f'{b:02x}' for b in p2_bytes)
+        print(f"Plaintext 2: {p2_hex}")
+
+        c1_bytes = U.bit_to_seq(c1_bits)
+        c1_hex = ''.join(f'{b:02x}' for b in c1_bytes)
+        print(f"Ciphertext 1: {c1_hex}")
+
+        c2_bytes = U.bit_to_seq(c2_bits)
+        c2_hex = ''.join(f'{b:02x}' for b in c2_bytes)
+        print(f"Ciphertext 2: {c2_hex}")
+
+        print(f'\nTotal execution time was {round(duration, 3)} seconds.')
+
+
+def test_single() -> None:
+    ROUND_COUNT = 2
+    lllwbc_diff = LLLWBCDiff(ROUND_COUNT)
+    in_diff = 0x0000000000000001
+    out_diff = 0xc5808abc4233a072
+
+    start = time()
+    model, p1, p2, c1, c2 = lllwbc_diff.symbolic_verify_path(in_diff, out_diff)
+    duration = time() - start
+    
+    if model is None:
+        print("✗ Impossible - No key exists that satisfies this differential\n")
+        return
+    print("✓ Differential is possible!")
+
+    # extract the key from the model
+    key_bits = []
+    for i in range(128):
+        key_var = lllwbc_diff.key_vars[i]
+        key_bits.append(is_true(model.eval(key_var)))
+
+    p1_bits = []
+    p2_bits = []
+    c1_bits = []
+    c2_bits = []
+    for i in range(64):
+        p1_bits.append(is_true(model.eval(p1[i])))
+        p2_bits.append(is_true(model.eval(p2[i])))
+        c1_bits.append(is_true(model.eval(c1[i])))
+        c2_bits.append(is_true(model.eval(c2[i])))
+
+    # convert to byte sequence and display the key in hex
+    key_bytes = U.bit_to_seq(key_bits)
+    key_hex = ''.join(f'{b:02x}' for b in key_bytes)
+    print(f"Key: {key_hex}")
+
+    p1_bytes = U.bit_to_seq(p1_bits)
+    p1_hex = ''.join(f'{b:02x}' for b in p1_bytes)
+    print(f"Plaintext 1: {p1_hex}")
+
+    p2_bytes = U.bit_to_seq(p2_bits)
+    p2_hex = ''.join(f'{b:02x}' for b in p2_bytes)
+    print(f"Plaintext 2: {p2_hex}")
+
+    c1_bytes = U.bit_to_seq(c1_bits)
+    c1_hex = ''.join(f'{b:02x}' for b in c1_bytes)
+    print(f"Ciphertext 1: {c1_hex}")
+
+    c2_bytes = U.bit_to_seq(c2_bits)
+    c2_hex = ''.join(f'{b:02x}' for b in c2_bytes)
+    print(f"Ciphertext 2: {c2_hex}")
+
+    print(f'\nTotal execution time was {round(duration, 3)} seconds.')
+
 
 def main():
-    test()
+    test_single()
 
 if __name__ == '__main__':
     main()
